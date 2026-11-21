@@ -15,13 +15,18 @@ Build an open-source, privacy-preserving, local-first habit tracking Progressive
 
 ### A. Habit Types & Input Widgets
 Habits can be marked as positive (`is_good: true`) or negative (`is_good: false`), and support `binary` (boolean), `integer`, and `float` values.
-The UI renders input controls dynamically based on a `widget_type` and `config_json` stored per habit:
+Each habit defines:
+- **`default_value` (`number | null`):** Controls how unlogged days are treated in statistics and plots. `null` means unlogged days are ignored/missing (e.g. body weight, sleep hours). A fixed number (e.g. `0`) means unlogged days count as that value (e.g. `0` alcohol units, `0` km cycled).
+- **`default_picker_value` (`number | null` in `config_json`):** Default value pre-populated in the daily logging input widget (e.g. defaulting weight input to `75.0` even though unlogged days have `default_value: null` for statistics).
+
+The UI renders input controls dynamically based on a `widget_type` (`'toggle' | 'counter' | 'numeric' | 'preset_accumulator'`) and `config_json` stored per habit:
 1. **Binary Toggle (`toggle`):** Simple done/not-done checkmark (`0` or `1`).
 2. **Counter (`counter`):** Integer stepper (`+1` / `-1`).
 3. **Numeric Input (`numeric`):** Direct decimal/integer entry (e.g., kilometers cycled, hours slept).
-4. **Preset Accumulator (`preset_accumulator`):** Configurable quick-tap buttons that add predefined float/int values to the day's cumulative total, plus an optional custom value entry.
+4. **Preset Accumulator (`preset_accumulator`):** Configurable quick-tap buttons that add predefined float/int values to the day's cumulative total, plus an optional custom value entry and direct total correction.
    - *Example (Alcohol tracking):* Tapping "Beer 3.3dl" adds `1.0`, "Beer 5.0dl" adds `1.5`, "Wine Glass" adds `1.0` to a unified `alcohol_units` habit log.
-5. **Derived Metric (`derived`):** Virtual/calculated metric with no manual input widget, evaluated client-side from other habits via a formula.
+
+*(Virtual/calculated metrics evaluated from other habits via formula are handled separately in a dedicated `derived_metrics` table, not as habit input widgets.)*
 
 ### B. Targets, Derived Metrics & Custom Plot Views
 - **Derived / Formula Metrics:** Evaluated client-side using a safe math expression parser (e.g., `expr-eval` or `mathjs`) referencing existing habit IDs aligned by date.
@@ -74,8 +79,9 @@ All synced tables use client-generated UUIDs, millisecond timestamps (`updated_a
 - `data_type` (TEXT: `'binary' | 'integer' | 'float'`)
 - `unit` (TEXT)
 - `is_good` (INTEGER DEFAULT 1)
-- `widget_type` (TEXT: `'toggle' | 'counter' | 'numeric' | 'preset_accumulator' | 'derived'`)
-- `config_json` (TEXT — JSON storing widget presets, derived `formula` & `dependencies`, optional `target` `{ value, period, operator }`, color/icon)
+- `default_value` (REAL — `NULL` for missing/unrecorded stats, or number like `0` for fixed baseline)
+- `widget_type` (TEXT: `'toggle' | 'counter' | 'numeric' | 'preset_accumulator'`)
+- `config_json` (TEXT — JSON storing widget presets, optional `default_picker_value`, optional `target` `{ value, period, operator }`, color/icon)
 - `updated_at` (INTEGER — Unix epoch ms)
 - `deleted` (INTEGER DEFAULT 0)
 
@@ -88,6 +94,16 @@ All synced tables use client-generated UUIDs, millisecond timestamps (`updated_a
 - `deleted` (INTEGER DEFAULT 0)
 - *Constraint:* `UNIQUE(habit_id, date)` (or handle latest entry per habit/date)
 
+### `derived_metrics`
+- `id` (TEXT PRIMARY KEY)
+- `name` (TEXT NOT NULL)
+- `unit` (TEXT)
+- `is_good` (INTEGER DEFAULT 1)
+- `formula` (TEXT NOT NULL)
+- `config_json` (TEXT — JSON storing optional `target`, color/chart preferences, etc.)
+- `updated_at` (INTEGER — Unix epoch ms)
+- `deleted` (INTEGER DEFAULT 0)
+
 ### `plot_views`
 - `id` (TEXT PRIMARY KEY)
 - `title` (TEXT NOT NULL)
@@ -96,7 +112,7 @@ All synced tables use client-generated UUIDs, millisecond timestamps (`updated_a
 - `updated_at` (INTEGER — Unix epoch ms)
 - `deleted` (INTEGER DEFAULT 0)
 
-*(Client IndexedDB records additionally maintain a local-only `synced` boolean flag to track unpushed offline changes.)*
+*(Client IndexedDB records additionally maintain a local-only `synced` INTEGER flag (`0` for unsynced, `1` for synced) so unpushed offline changes can be reliably indexed and queried.)*
 
 ---
 
@@ -105,15 +121,15 @@ All synced tables use client-generated UUIDs, millisecond timestamps (`updated_a
 Communication uses a single sync endpoint: `POST /api/v1/sync` (protected by `Authorization: Bearer <API_KEY>`).
 
 1. **Trigger:** Sync runs automatically on app open / focus (`visibilitychange`), debounced after local edits, or manually via a "Sync Now" button.
-2. **Client Request:** Sends `last_synced_at` (timestamp) plus arrays of all local records (`habits`, `habit_logs`, `plot_views`) where `synced == false`.
+2. **Client Request:** Sends `last_synced_at` (timestamp) plus arrays of all local records (`habits`, `habit_logs`, `derived_metrics`, `plot_views`) where `synced == 0`.
 3. **Server Processing (within a SQLite transaction):**
    - Upserts incoming records only if `incoming.updated_at > existing.updated_at` (Last-Write-Wins).
-   - Queries all records across all three tables where `updated_at > last_synced_at`.
+   - Queries all records across all four tables where `updated_at > last_synced_at`.
 4. **Server Response:** Returns `server_time` (current epoch ms) and the arrays of updated records from the server.
-5. **Client Commit:** Upserts received server records into IndexedDB (where newer), marks pushed records `synced = true`, and updates `last_synced_at = server_time`.
+5. **Client Commit:** Upserts received server records into IndexedDB (where newer), marks pushed records `synced = 1`, and updates `last_synced_at = server_time`.
 6. **Manual Recovery / Full Resync (Settings):**
    - **Force Pull from Server (Overwrite Local):** Clears local IndexedDB and pulls the full database from the server (`last_synced_at = 0`, no push). Handles manual SQL edits, bulk CSV imports, or hard deletes performed directly on the Pi.
-   - **Force Push to Server:** Marks all local records `synced = false` and pushes the full client database to the server (e.g., if rebuilding an empty server).
+   - **Force Push to Server:** Marks all local records `synced = 0` and pushes the full client database to the server (e.g., if rebuilding an empty server).
 
 *(UI queries always filter `WHERE deleted = 0`.)*
 
@@ -144,7 +160,7 @@ Example `docker-compose.yml`:
 
 Thorough, well-structured documentation is mandatory across the repository:
 - **Main `README.md`:** Clear project overview, feature highlights, screenshots/examples (including preset accumulator, targets, and derived multi-metric plots), and architecture diagram.
-- **Self-Hosting Guide (`docs/self-hosting.md` or README section):** Step-by-step instructions for deploying on a Raspberry Pi or Linux host using `docker-compose.yml` (covering Docker installation, setting `API_KEY`, updating containers with `docker compose pull`, and backing up `./data/habits.sqlite`).
+- **Self-Hosting Guide (`docs/self_hosting.md` or README section):** Step-by-step instructions for deploying on a Raspberry Pi or Linux host using `docker-compose.yml` (covering Docker installation, setting `API_KEY`, updating containers with `docker compose pull`, and backing up `./data/habits.sqlite`).
 - **HTTPS / Networking Guide:** Step-by-step walkthrough for exposing the local Raspberry Pi API over HTTPS using Cloudflare Tunnel (`cloudflared`) so GitHub Pages Mixed Content rules are satisfied without VPN apps.
 - **User Guide:** How to configure habits, preset accumulators, derived formula syntax, targets & scaling, custom plot views, and multi-device setup/resync via Settings.
 - **Developer / Contributing Guide:** Local dev setup (running frontend + backend locally), API contract specification, and instructions for adding new modular input widgets.
@@ -168,7 +184,7 @@ Build incrementally—starting with a functional, barebones unstyled HTML/JS cor
 - Deploy on Raspberry Pi with Cloudflare Tunnel (`cloudflared`) and verify end-to-end multi-device syncing.
 
 ### Sprint 3: Derived Metrics, Targets & Multi-Metric Plots
-- Implement `widget_type: 'derived'` with safe formula parser (`expr-eval` or `mathjs`) and date alignment.
+- Implement `derived_metrics` table calculation engine with safe formula parser (`expr-eval` or `mathjs`) and date alignment.
 - Add target configuration (`value`, `period`, `operator`) to habit/derived-metric UI forms.
 - Integrate a charting library (e.g., Chart.js) and build the `plot_views` CRUD builder:
   - Plot multiple metrics/derived metrics on one chart (with dual-axis option).
@@ -180,3 +196,6 @@ Build incrementally—starting with a functional, barebones unstyled HTML/JS cor
 - Apply clean, responsive mobile-first CSS/styling, dark mode, icons, and fast tap ergonomics.
 - Add first-visit onboarding flow ("Connect Server", "Start Empty", or "Load Demo Starter Pack").
 - Write complete documentation (`README.md`, Self-Hosting & Cloudflare Tunnel guide, User Guide, Developer Guide) and finalize the open-source license.
+
+### Feature Backlog
+- min, max
