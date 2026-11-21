@@ -27,7 +27,7 @@ function pwaIcons(): Plugin {
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  base: '/habit-tracker/',
+  base: '/habit_tracker/',
   plugins: [
     react(),
     pwaIcons(),
@@ -40,8 +40,8 @@ export default defineConfig({
         theme_color: '#0f172a',
         background_color: '#0f172a',
         display: 'standalone',
-        start_url: '/habit-tracker/',
-        scope: '/habit-tracker/',
+        start_url: '/habit_tracker/',
+        scope: '/habit_tracker/',
         icons: [
           {
             src: 'pwa-192x192.svg',
