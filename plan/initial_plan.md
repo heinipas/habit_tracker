@@ -14,16 +14,16 @@ Build an open-source, privacy-preserving, local-first habit tracking Progressive
 ## 2. Functional Requirements
 
 ### A. Habit Types & Input Widgets
-Habits can be marked as positive (`is_good: true`) or negative (`is_good: false`), and support `binary` (boolean), `integer`, and `float` values.
+Habits can be marked as positive (`is_good: true`) or negative (`is_good: false`), and support `binary` (boolean) and `float` (numeric) values.
 Each habit defines:
 - **`default_value` (`number | null`):** Controls how unlogged days are treated in statistics and plots. `null` means unlogged days are ignored/missing (e.g. body weight, sleep hours). A fixed number (e.g. `0`) means unlogged days count as that value (e.g. `0` alcohol units, `0` km cycled).
-- **`default_picker_value` (`number | null` in `config_json`):** Default value pre-populated in the daily logging input widget (e.g. defaulting weight input to `75.0` even though unlogged days have `default_value: null` for statistics).
+- **`default_picker_value` (`number | null` in `config_json`):** Default value for the daily logging UI tailored to the widget type (checkbox state for toggle; numeric value for numeric, counter, and pre-filling the custom delta field for preset accumulator).
 
 The UI renders input controls dynamically based on a `widget_type` (`'toggle' | 'counter' | 'numeric' | 'preset_accumulator'`) and `config_json` stored per habit:
 1. **Binary Toggle (`toggle`):** Simple done/not-done checkmark (`0` or `1`).
-2. **Counter (`counter`):** Integer stepper (`+1` / `-1`).
-3. **Numeric Input (`numeric`):** Direct decimal/integer entry (e.g., kilometers cycled, hours slept).
-4. **Preset Accumulator (`preset_accumulator`):** Configurable quick-tap buttons that add predefined float/int values to the day's cumulative total, plus an optional custom value entry and direct total correction.
+2. **Counter (`counter`):** Stepper (`+{step}` / `-{step}`).
+3. **Numeric Input (`numeric`):** Direct numeric entry (e.g., kilometers cycled, hours slept).
+4. **Preset Accumulator (`preset_accumulator`):** Configurable quick-tap buttons that add predefined values to the day's cumulative total, plus a custom delta entry field and direct total correction.
    - *Example (Alcohol tracking):* Tapping "Beer 3.3dl" adds `1.0`, "Beer 5.0dl" adds `1.5`, "Wine Glass" adds `1.0` to a unified `alcohol_units` habit log.
 
 *(Virtual/calculated metrics evaluated from other habits via formula are handled separately in a dedicated `derived_metrics` table, not as habit input widgets.)*
@@ -76,7 +76,8 @@ All synced tables use client-generated UUIDs, millisecond timestamps (`updated_a
 ### `habits`
 - `id` (TEXT PRIMARY KEY)
 - `name` (TEXT NOT NULL)
-- `data_type` (TEXT: `'binary' | 'integer' | 'float'`)
+- `emoji` (TEXT — optional single emoji symbol to visually identify the habit in UI, placed before title)
+- `data_type` (TEXT: `'binary' | 'float'`)
 - `unit` (TEXT)
 - `is_good` (INTEGER DEFAULT 1)
 - `default_value` (REAL — `NULL` for missing/unrecorded stats, or number like `0` for fixed baseline)
@@ -97,6 +98,7 @@ All synced tables use client-generated UUIDs, millisecond timestamps (`updated_a
 ### `derived_metrics`
 - `id` (TEXT PRIMARY KEY)
 - `name` (TEXT NOT NULL)
+- `emoji` (TEXT — optional emoji symbol to visually identify the derived metric, placed before title)
 - `unit` (TEXT)
 - `is_good` (INTEGER DEFAULT 1)
 - `formula` (TEXT NOT NULL)
@@ -107,10 +109,13 @@ All synced tables use client-generated UUIDs, millisecond timestamps (`updated_a
 ### `plot_views`
 - `id` (TEXT PRIMARY KEY)
 - `title` (TEXT NOT NULL)
+- `emoji` (TEXT — optional emoji symbol to visually identify the plot view, placed before title)
 - `config_json` (TEXT — JSON storing chart type, array of metric/habit IDs, aggregation bucket, date range, show_targets flag)
 - `sort_order` (INTEGER DEFAULT 0)
 - `updated_at` (INTEGER — Unix epoch ms)
 - `deleted` (INTEGER DEFAULT 0)
+
+*(Emojis: An optional `emoji` field is supported across `habits`, `presets` (in `config_json`), `derived_metrics`, and `plot_views`. In the UI, the emoji is consistently rendered before the title/name, e.g. `🏃 Running`, `🍺 Beer 5dl`, `📊 Habit Correlation`.)*
 
 *(Client IndexedDB records additionally maintain a local-only `synced` INTEGER flag (`0` for unsynced, `1` for synced) so unpushed offline changes can be reliably indexed and queried.)*
 

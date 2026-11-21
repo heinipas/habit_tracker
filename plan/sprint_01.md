@@ -115,12 +115,13 @@ export const db = new HabitTrackerDB();
 #### `habits`
 - `id`: `string` (UUID v4, Primary Key)
 - `name`: `string` (Human-readable habit title)
-- `data_type`: `'binary' | 'integer' | 'float'`
+- `emoji`: `string | null` (Optional emoji displayed before title, e.g. 🏃, 🍺)
+- `data_type`: `'binary' | 'float'`
 - `unit`: `string | null` (e.g. `"km"`, `"hours"`, `"units"`, `null`)
 - `is_good`: `boolean` (positive habit vs negative/bad habit)
 - `default_value`: `number | null` (`null` = unlogged days are ignored/missing in stats; fixed number e.g. `0` = unlogged days count as that number)
 - `widget_type`: `'toggle' | 'counter' | 'numeric' | 'preset_accumulator'`
-- `config_json`: `string` (Serialized JSON holding widget presets, optional `default_picker_value` for pre-populating daily inputs, color/icon, target)
+- `config_json`: `string` (Serialized JSON holding widget presets with optional emojis, optional `default_picker_value` for pre-populating daily inputs, color/icon, target)
 - `updated_at`: `number` (Epoch ms timestamp)
 - `deleted`: `number` (`0` for active, `1` for soft-deleted)
 - `synced`: `number` (Local-only indexable integer flag: `0` for unsynced changes, `1` for synced)
@@ -138,6 +139,7 @@ export const db = new HabitTrackerDB();
 #### `derived_metrics` *(Scaffolded in Sprint 1 schema, evaluated in Sprint 3)*
 - `id`: `string` (UUID v4, Primary Key)
 - `name`: `string`
+- `emoji`: `string | null` (Optional emoji displayed before title)
 - `unit`: `string | null`
 - `is_good`: `boolean`
 - `formula`: `string`
@@ -149,6 +151,7 @@ export const db = new HabitTrackerDB();
 #### `plot_views` *(Scaffolded for forward compatibility)*
 - `id`: `string` (UUID v4, Primary Key)
 - `title`: `string`
+- `emoji`: `string | null` (Optional emoji displayed before title)
 - `config_json`: `string`
 - `sort_order`: `number`
 - `updated_at`: `number`
@@ -165,16 +168,16 @@ export const db = new HabitTrackerDB();
 - **Requirements:**
   1. Form inputs:
      - `Name`: string.
-     - `Data Type`: `binary`, `integer`, `float`.
+     - `Data Type`: `binary`, `float`.
      - `Unit`: optional string.
      - `Is Good`: checkbox (defaults to checked).
      - `Statistical Default Value` (`default_value`): number or empty (`null`). Helper text explains: *Leave empty if unlogged days are ignored/missing in averages and plots (e.g. Weight, Sleep); or enter a number like 0 if unlogged days count as that value (e.g. 0 km biked, 0 units consumed)*.
-     - `Default Picker Value` (`default_picker_value` stored in `config_json`): optional number pre-filling the tracker widget on unlogged days (e.g. pre-filling weight input to `75.0` even though `default_value` is `null`).
+     - `Default Picker Value` (`default_picker_value` in `config_json`): Widget-specific pre-fill: checkbox for binary toggle; numeric pre-fill for numeric and counter; custom delta pre-fill for preset accumulator.
   2. `Widget Type` selector:
      - `toggle`: Restricted to `binary` data type.
-     - `counter`: Available for `integer` or `float`.
-     - `numeric`: Available for `integer` or `float`.
-     - `preset_accumulator`: Allows adding generic preset buttons (e.g. Label: "Single", Delta: `1.0`; Label: "Half", Delta: `0.5`). Must remain completely domain-agnostic and generic without hardcoded presets.
+     - `counter`: Available for `float` data type (with configurable step).
+     - `numeric`: Available for `float` data type.
+     - `preset_accumulator`: Available for `float` data type.
   3. Editing: Users can modify name, unit, statistical default, picker default, and widget configurations.
   4. Soft Delete: Deleting a habit updates `deleted = 1`, `updated_at = Date.now()`, `synced = 0`. The habit immediately disappears from the active tracker and active habit list.
 
