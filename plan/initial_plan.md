@@ -43,6 +43,7 @@ The UI renders input controls dynamically based on a `widget_type` (`'toggle' | 
 ### C. Device Setup & Portability
 - New devices start clean and only require entering two fields in the Settings UI: **Sync Server URL** and **API Key** (stored locally in `localStorage`/IndexedDB).
 - Once configured, the client pulls all habit definitions, logs, and plot views on the first sync.
+- **Connection Status Indicator:** The header shows a status dot (green = connected, gently pulsing = sync in progress, orange = disconnected/unreachable, red = error) with an unsynced-changes count badge; clicking it opens a popover with server info (host, version, last sync) and a summary of unsynced entries, offering a manual *Sync Now*.
 - Include a manual JSON Export/Import fallback for backing up or migrating profiles without a sync server.
 
 ---
@@ -55,7 +56,8 @@ The UI renders input controls dynamically based on a `widget_type` (`'toggle' | 
        └── Settings: Sync Server URL & API Key
                │
                │  HTTPS (REST + CORS + Bearer Token)
-               │  (e.g., via Cloudflare Tunnel to bypass Mixed Content & Tailscale)
+               │  (currently via Tailscale serve — tailnet-only;
+               │   swappable later to Tailscale Funnel or Cloudflare Tunnel)
                ▼
     [ Backend: Dockerized Sync Server (e.g., Raspberry Pi) ]
        ├── Lightweight REST API (FastAPI / Node.js / Go)
@@ -65,7 +67,7 @@ The UI renders input controls dynamically based on a `widget_type` (`'toggle' | 
 ### Key Architectural Decisions
 1. **Frontend (GitHub Pages):** Static PWA bundle (React/Svelte/Vue + Service Worker) using IndexedDB (e.g., Dexie.js) as the primary local store.
 2. **Backend (Raspberry Pi / Self-Hosted):** Minimal REST server with CORS enabled (to accept requests from GitHub Pages origins) and SQLite for zero-maintenance persistence.
-3. **HTTPS & Networking:** Because GitHub Pages is served over HTTPS, browsers block plain HTTP requests (Mixed Content). The backend sits behind an HTTPS endpoint—typically **Cloudflare Tunnel (`cloudflared`)** on the Raspberry Pi—providing worldwide HTTPS access without router port forwarding or requiring VPN clients (like Tailscale) on client devices.
+3. **HTTPS & Networking:** Because GitHub Pages is served over HTTPS, browsers block plain HTTP requests (Mixed Content), so the backend must be reached over HTTPS. **Current choice: Tailscale VPN on the Raspberry Pi**—`tailscale serve` terminates HTTPS for `https://raspberrypi.<tailscale_number>.ts.net` (local port 8090) and forwards to the Dockerized server on `127.0.0.1:8080`. This requires no router port forwarding and keeps the API private to the tailnet (client devices must run the Tailscale app). The setup is deliberately **tunnel-agnostic**: switching later to **Tailscale Funnel** or **Cloudflare Tunnel** (public HTTPS without VPN clients) requires no application or database changes—only the *Sync Server URL* entered in Settings.
 
 ---
 
@@ -133,7 +135,7 @@ Communication uses a single sync endpoint: `POST /api/v1/sync` (protected by `Au
 4. **Server Response:** Returns `server_time` (current epoch ms) and the arrays of updated records from the server.
 5. **Client Commit:** Upserts received server records into IndexedDB (where newer), marks pushed records `synced = 1`, and updates `last_synced_at = server_time`.
 6. **Manual Recovery / Full Resync (Settings):**
-   - **Force Pull from Server (Overwrite Local):** Clears local IndexedDB and pulls the full database from the server (`last_synced_at = 0`, no push). Handles manual SQL edits, bulk CSV imports, or hard deletes performed directly on the Pi.
+   - **Force Pull from Server (Overwrite Local):** Pulls the full database from the server (`last_synced_at = 0`, no push) and applies it with Last-Write-Wins: newer server rows overwrite older local rows, while local rows newer than the server (or unknown to it) are kept and pushed on the next sync. Handles manual SQL edits, bulk CSV imports, or hard deletes performed directly on the Pi.
    - **Force Push to Server:** Marks all local records `synced = 0` and pushes the full client database to the server (e.g., if rebuilding an empty server).
 
 *(UI queries always filter `WHERE deleted = 0`.)*
@@ -166,7 +168,7 @@ Example `docker-compose.yml`:
 Thorough, well-structured documentation is mandatory across the repository:
 - **Main `README.md`:** Clear project overview, feature highlights, screenshots/examples (including preset accumulator, targets, and derived multi-metric plots), and architecture diagram.
 - **Self-Hosting Guide (`docs/self_hosting.md` or README section):** Step-by-step instructions for deploying on a Raspberry Pi or Linux host using `docker-compose.yml` (covering Docker installation, setting `API_KEY`, updating containers with `docker compose pull`, and backing up `./data/habits.sqlite`).
-- **HTTPS / Networking Guide:** Step-by-step walkthrough for exposing the local Raspberry Pi API over HTTPS using Cloudflare Tunnel (`cloudflared`) so GitHub Pages Mixed Content rules are satisfied without VPN apps.
+- **HTTPS / Networking Guide (`docs/networking.md`):** Provider-agnostic guide with the current path documented in full—exposing the local Raspberry Pi API over HTTPS via **Tailscale serve**—plus clearly marked migration sections (outline-level) for switching to **Tailscale Funnel** or **Cloudflare Tunnel** later. The app itself never changes when switching providers.
 - **User Guide:** How to configure habits, preset accumulators, derived formula syntax, targets & scaling, custom plot views, and multi-device setup/resync via Settings.
 - **Developer / Contributing Guide:** Local dev setup (running frontend + backend locally), API contract specification, and instructions for adding new modular input widgets.
 
@@ -186,7 +188,8 @@ Build incrementally—starting with a functional, barebones unstyled HTML/JS cor
 - Build the backend REST API + SQLite schema (`POST /api/v1/sync`, auth Bearer check, CORS).
 - Add `Dockerfile`, `docker-compose.yml` (YAML-based config), and GitHub Actions workflow to publish multi-arch images to GHCR and deploy frontend to GitHub Pages.
 - Implement Sync client in frontend: Settings UI (`Server URL`, `API Key`, `Sync Now`, `Force Pull`, `Force Push`) and automatic background sync triggers.
-- Deploy on Raspberry Pi with Cloudflare Tunnel (`cloudflared`) and verify end-to-end multi-device syncing.
+- Add a **connection/sync status indicator** in the top-right header: green dot when connected, gently pulsing while a sync is in progress, orange when disconnected, red on error, plus an unsynced-changes count badge; clicking it opens a popover with server info (host, version, last sync) and a summary of unsynced habits/metrics/plots and per-habit entry counts, with a manual *Sync Now* action.
+- Deploy on Raspberry Pi over **Tailscale serve** (`https://raspberrypi.<tailscale_number>.ts.net`, local port 8090) and verify end-to-end multi-device syncing; document the setup in `docs/networking.md` with Tailscale Funnel / Cloudflare Tunnel left as alternative paths.
 
 ### Sprint 3: Derived Metrics, Targets & Multi-Metric Plots
 - Implement `derived_metrics` table calculation engine with safe formula parser (`expr-eval` or `mathjs`) and date alignment.
@@ -200,7 +203,7 @@ Build incrementally—starting with a functional, barebones unstyled HTML/JS cor
 - Add PWA `manifest.json` and Service Worker caching for 100% offline launch.
 - Apply clean, responsive mobile-first CSS/styling, dark mode, icons, and fast tap ergonomics.
 - Add first-visit onboarding flow ("Connect Server", "Start Empty", or "Load Demo Starter Pack").
-- Write complete documentation (`README.md`, Self-Hosting & Cloudflare Tunnel guide, User Guide, Developer Guide) and finalize the open-source license.
+- Write complete documentation (`README.md`, Self-Hosting guide, Networking guide — Tailscale with Funnel/Cloudflare alternatives, User Guide, Developer Guide) and finalize the open-source license.
 
 ### Feature Backlog
 - min, max

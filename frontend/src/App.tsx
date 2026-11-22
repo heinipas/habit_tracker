@@ -3,6 +3,9 @@ import { DailyTracker } from './components/tracker/DailyTracker';
 import { HabitList } from './components/habits/HabitList';
 import { RecentLogsTable } from './components/history/RecentLogsTable';
 import { BackupExportImport } from './components/settings/BackupExportImport';
+import { SyncSettings } from './components/settings/SyncSettings';
+import { SyncStatusIndicator } from './components/sync/SyncStatusIndicator';
+import { useSync } from './sync/useSync';
 import { db } from './db/db';
 import packageJson from '../package.json';
 
@@ -13,11 +16,20 @@ const frontendVersion = packageJson.version;
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('tracker');
+  useSync();
 
   return (
     <div style={{ maxWidth: '800px', margin: '0 auto', padding: '1rem', fontFamily: 'system-ui, sans-serif' }}>
-      <header style={{ marginBottom: '1.5rem', borderBottom: '1px solid #ddd', paddingBottom: '0.5rem' }}>
+      <header
+        style={{
+          position: 'relative',
+          marginBottom: '1.5rem',
+          borderBottom: '1px solid #ddd',
+          paddingBottom: '0.5rem'
+        }}
+      >
         <h1 style={{ margin: '0 0 0.5rem 0' }}>Habit Tracker</h1>
+        <SyncStatusIndicator />
         <nav style={{ display: 'flex', gap: '0.5rem' }}>
           <button
             type="button"
@@ -54,7 +66,12 @@ export const App: React.FC = () => {
         {activeTab === 'tracker' && <DailyTracker />}
         {activeTab === 'habits' && <HabitList />}
         {activeTab === 'history' && <RecentLogsTable />}
-        {activeTab === 'settings' && <BackupExportImport />}
+        {activeTab === 'settings' && (
+          <>
+            <SyncSettings />
+            <BackupExportImport />
+          </>
+        )}
       </main>
 
       {activeTab === 'settings' && (

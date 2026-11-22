@@ -1,0 +1,13 @@
+services:
+  habit-sync-server:
+    image: ghcr.io/heinipas/habit-sync-server:latest
+    restart: unless-stopped
+    ports:
+      # Loopback only — reached through `tailscale serve` (local port 8090).
+      - "127.0.0.1:8090:8080"
+    environment:
+      - API_KEY=change_this_to_a_strong_secret
+      - CORS_ORIGINS=https://heinipas.github.io
+      - DB_PATH=/app/data/habits.sqlite
+    volumes:
+      - ./data:/app/data
