@@ -1,6 +1,6 @@
 export type DataType = 'binary' | 'float';
 
-export type WidgetType = 'toggle' | 'counter' | 'numeric' | 'preset_accumulator';
+export type WidgetType = 'toggle' | 'counter' | 'preset_accumulator';
 
 export interface PresetItem {
   label: string;
@@ -35,6 +35,7 @@ export interface Habit {
   default_value: number | null; // null = ignore unlogged days in stats, number = fixed baseline
   widget_type: WidgetType;
   config_json: string; // JSON serialized HabitConfig
+  sort_order?: number | null; // Display position in the Daily Tracker (lower = first)
   updated_at: number; // Unix epoch ms
   deleted: number; // 0 for active, 1 for soft-deleted
   synced: number; // 0 for unsynced, 1 for synced

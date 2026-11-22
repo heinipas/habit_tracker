@@ -29,10 +29,19 @@ export async function saveHabit(
   const now = Date.now();
   const id = habit.id || crypto.randomUUID();
 
+  // Keep the current position when editing, otherwise append to the end
+  const existing = habit.id ? await db.habits.get(habit.id) : undefined;
+  let sortOrder = existing?.sort_order ?? habit.sort_order ?? null;
+  if (sortOrder == null) {
+    const allHabits = await db.habits.toArray();
+    sortOrder = allHabits.reduce((max, h) => Math.max(max, h.sort_order ?? -1), -1) + 1;
+  }
+
   const habitRecord: Habit = {
     ...habit,
     emoji: habit.emoji ? habit.emoji.trim() : null,
     id,
+    sort_order: sortOrder,
     updated_at: now,
     deleted: 0,
     synced: 0
@@ -40,6 +49,22 @@ export async function saveHabit(
 
   await db.habits.put(habitRecord);
   return habitRecord;
+}
+
+/**
+ * Persist a new display order for the Daily Tracker (array index = position)
+ */
+export async function reorderHabits(orderedIds: string[]): Promise<void> {
+  const now = Date.now();
+  await db.transaction('rw', db.habits, async () => {
+    for (let index = 0; index < orderedIds.length; index++) {
+      await db.habits.update(orderedIds[index], {
+        sort_order: index,
+        updated_at: now,
+        synced: 0
+      });
+    }
+  });
 }
 
 /**

@@ -3,8 +3,13 @@ import { DailyTracker } from './components/tracker/DailyTracker';
 import { HabitList } from './components/habits/HabitList';
 import { RecentLogsTable } from './components/history/RecentLogsTable';
 import { BackupExportImport } from './components/settings/BackupExportImport';
+import { db } from './db/db';
+import packageJson from '../package.json';
 
 type Tab = 'tracker' | 'habits' | 'history' | 'settings';
+
+// Frontend version shown in the footer (X.X.X, e.g. 0.1.0)
+const frontendVersion = packageJson.version;
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('tracker');
@@ -51,6 +56,21 @@ export const App: React.FC = () => {
         {activeTab === 'history' && <RecentLogsTable />}
         {activeTab === 'settings' && <BackupExportImport />}
       </main>
+
+      {activeTab === 'settings' && (
+        <footer
+          style={{
+            marginTop: '2rem',
+            paddingTop: '0.5rem',
+            borderTop: '1px solid #ddd',
+            textAlign: 'center',
+            color: '#6b7280',
+            fontSize: '0.8rem'
+          }}
+        >
+          Frontend v{frontendVersion} · Database v{db.verno}
+        </footer>
+      )}
     </div>
   );
 };

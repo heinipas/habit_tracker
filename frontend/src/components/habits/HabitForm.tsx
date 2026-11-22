@@ -36,9 +36,7 @@ export const HabitForm: React.FC<HabitFormProps> = ({ existingHabit, onDone, onC
   const initialWidgetType: WidgetType = existingHabit?.widget_type || (existingHabit?.data_type === 'binary' ? 'toggle' : 'counter');
   const [widgetType, setWidgetType] = useState<WidgetType>(initialWidgetType);
 
-  // Default picker value representation:
-  // For toggle: '1' or '0'
-  // For numeric / counter / preset: string number
+  // Default picker value: pre-fills the widget input on days without a log
   const [defaultPickerValue, setDefaultPickerValue] = useState<string>(
     initialConfig.default_picker_value != null ? String(initialConfig.default_picker_value) : ''
   );
@@ -61,13 +59,6 @@ export const HabitForm: React.FC<HabitFormProps> = ({ existingHabit, onDone, onC
     } else if (widgetType === 'toggle') {
       setWidgetType('counter');
       setDefaultPickerValue('');
-    }
-  };
-
-  const handleWidgetTypeChange = (newWidget: WidgetType) => {
-    setWidgetType(newWidget);
-    if (newWidget === 'toggle') {
-      setDefaultPickerValue('0');
     }
   };
 
@@ -95,9 +86,7 @@ export const HabitForm: React.FC<HabitFormProps> = ({ existingHabit, onDone, onC
     }
 
     let parsedDefaultPicker: number | null = null;
-    if (widgetType === 'toggle') {
-      parsedDefaultPicker = defaultPickerValue === '1' ? 1 : null;
-    } else if (defaultPickerValue.trim() !== '') {
+    if (widgetType !== 'toggle' && defaultPickerValue.trim() !== '') {
       const num = parseFloat(defaultPickerValue);
       parsedDefaultPicker = !isNaN(num) ? num : null;
     }
@@ -106,7 +95,8 @@ export const HabitForm: React.FC<HabitFormProps> = ({ existingHabit, onDone, onC
       ...initialConfig,
       step: parsedStep && parsedStep > 0 ? parsedStep : undefined,
       presets: widgetType === 'preset_accumulator' ? presets : undefined,
-      default_picker_value: parsedDefaultPicker
+      // No picker default for binary toggles: the checkbox always starts unchecked
+      default_picker_value: widgetType === 'toggle' ? undefined : parsedDefaultPicker
     };
 
     try {
@@ -199,15 +189,14 @@ export const HabitForm: React.FC<HabitFormProps> = ({ existingHabit, onDone, onC
         <select
           id="habit-widget-type"
           value={widgetType}
-          onChange={(e) => handleWidgetTypeChange(e.target.value as WidgetType)}
+          onChange={(e) => setWidgetType(e.target.value as WidgetType)}
         >
           {dataType === 'binary' ? (
             <option value="toggle">Toggle (Checkbox)</option>
           ) : (
             <>
               <option value="counter">Counter (+/- Stepper)</option>
-              <option value="numeric">Numeric (Direct entry)</option>
-              <option value="preset_accumulator">Preset Accumulator (Quick-tap buttons + Custom field)</option>
+              <option value="preset_accumulator">Preset Accumulator (Quick-tap buttons)</option>
             </>
           )}
         </select>
@@ -243,64 +232,53 @@ export const HabitForm: React.FC<HabitFormProps> = ({ existingHabit, onDone, onC
         <small style={{ color: '#555' }}>
           {dataType === 'binary' ? (
             <>
-              Select <code>null</code> if unlogged days are ignored/missing in stats.
-              Select <code>0</code> or <code>1</code> if unlogged days count as that baseline.
+              <code>null</code>: unlogged days ignored. <code>0</code>/<code>1</code>: unlogged days count as this baseline.
             </>
           ) : (
             <>
-              Leave empty for <code>null</code> (unlogged days are ignored/missing in stats, e.g. body weight, sleep hours).
-              Enter <code>0</code> or a number if unlogged days count as that baseline (e.g. 0 alcohol units, 0 km biked).
+              Empty = <code>null</code> (unlogged days ignored). A number = unlogged days count as this baseline.
             </>
           )}
         </small>
       </div>
 
-      {/* Widget-specific default picker value */}
-      <div style={{ marginBottom: '0.75rem' }}>
-        <label><strong>Default Picker Value (Optional):</strong></label>
-        {widgetType === 'toggle' ? (
-          <div>
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
+      {/* Widget-specific default picker value (not available for binary toggles) */}
+      {widgetType !== 'toggle' && (
+        <div style={{ marginBottom: '0.75rem' }}>
+          <label><strong>Picker Value Preset (Optional):</strong></label>
+          {widgetType === 'preset_accumulator' ? (
+            <div>
               <input
-                type="checkbox"
-                checked={defaultPickerValue === '1'}
-                onChange={(e) => setDefaultPickerValue(e.target.checked ? '1' : '0')}
+                type="number"
+                step="any"
+                value={defaultPickerValue}
+                onChange={(e) => setDefaultPickerValue(e.target.value)}
+                placeholder="e.g. 1.0"
+                style={{ width: '120px' }}
               />
-              <span>Checked by default?</span>
-            </label>
-          </div>
-        ) : widgetType === 'preset_accumulator' ? (
-          <div>
-            <input
-              type="number"
-              step="any"
-              value={defaultPickerValue}
-              onChange={(e) => setDefaultPickerValue(e.target.value)}
-              placeholder="e.g. 1.0"
-              style={{ width: '120px' }}
-            />
-            <br />
-            <small style={{ color: '#555' }}>
-              Pre-fills the custom delta increment field in the Daily Tracker.
-            </small>
-          </div>
-        ) : (
-          <div>
-            <input
-              type="number"
-              step="any"
-              value={defaultPickerValue}
-              onChange={(e) => setDefaultPickerValue(e.target.value)}
-              placeholder={widgetType === 'numeric' ? 'e.g. 75.0' : 'e.g. 0'}
-              style={{ width: '120px' }}
-            />
-            <br />
-            <small style={{ color: '#555' }}>
-              Pre-fills the input field in the Daily Tracker when no log exists yet.
-            </small>
-          </div>
-        )}
-      </div>
+              <br />
+              <small style={{ color: '#555' }}>
+                Pre-fills the custom delta field in the tracker.
+              </small>
+            </div>
+          ) : (
+            <div>
+              <input
+                type="number"
+                step="any"
+                value={defaultPickerValue}
+                onChange={(e) => setDefaultPickerValue(e.target.value)}
+                placeholder="e.g. 0"
+                style={{ width: '120px' }}
+              />
+              <br />
+              <small style={{ color: '#555' }}>
+                Pre-fills the tracker input when no log exists yet.
+              </small>
+            </div>
+          )}
+        </div>
+      )}
 
       {widgetType === 'counter' && (
         <div style={{ marginBottom: '0.75rem' }}>
@@ -319,7 +297,7 @@ export const HabitForm: React.FC<HabitFormProps> = ({ existingHabit, onDone, onC
           />
           <br />
           <small style={{ color: '#555' }}>
-            Amount to add/subtract per button tap (default is 1).
+            Added/subtracted per tap (default 1).
           </small>
         </div>
       )}

@@ -68,9 +68,6 @@ export const CounterWidget: React.FC<WidgetProps> = ({ habit, log, date }) => {
       />
       {habit.unit && <span>{habit.unit}</span>}
       <button type="button" onClick={() => handleDelta(step)}>+{step}</button>
-      {!log && config.default_picker_value != null && (
-        <small style={{ color: '#666' }}>(Default: {defaultPicker})</small>
-      )}
     </div>
   );
 };

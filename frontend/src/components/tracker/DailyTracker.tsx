@@ -4,9 +4,8 @@ import { db } from '../../db/db';
 import { DatePicker } from '../common/DatePicker';
 import { ToggleWidget } from './widgets/ToggleWidget';
 import { CounterWidget } from './widgets/CounterWidget';
-import { NumericWidget } from './widgets/NumericWidget';
 import { PresetAccumulatorWidget } from './widgets/PresetAccumulatorWidget';
-import { softDeleteHabitLog } from '../../db/queries';
+import { softDeleteHabitLog, reorderHabits } from '../../db/queries';
 import type { Habit, HabitLog } from '../../types';
 
 export const DailyTracker: React.FC = () => {
@@ -43,6 +42,34 @@ export const DailyTracker: React.FC = () => {
     await softDeleteHabitLog(logId);
   };
 
+  // Habits in the user-defined order; habits without a position keep DB order
+  const orderedHabits = (habits ?? [])
+    .slice()
+    .sort(
+      (a, b) =>
+        (a.sort_order ?? Number.MAX_SAFE_INTEGER) - (b.sort_order ?? Number.MAX_SAFE_INTEGER)
+    );
+
+  const handleMove = async (index: number, direction: -1 | 1) => {
+    const target = index + direction;
+    if (target < 0 || target >= orderedHabits.length) return;
+    const reordered = [...orderedHabits];
+    const [moved] = reordered.splice(index, 1);
+    reordered.splice(target, 0, moved);
+    await reorderHabits(reordered.map((habit) => habit.id));
+  };
+
+  const reorderButtonStyle = (disabled: boolean): React.CSSProperties => ({
+    padding: '0.1rem 0.4rem',
+    fontSize: '0.8rem',
+    backgroundColor: '#f3f4f6',
+    border: '1px solid #d1d5db',
+    borderRadius: '4px',
+    color: '#374151',
+    cursor: disabled ? 'default' : 'pointer',
+    opacity: disabled ? 0.4 : 1
+  });
+
   const renderWidget = (habit: Habit) => {
     const log = logsByHabitId.get(habit.id);
     switch (habit.widget_type) {
@@ -50,8 +77,6 @@ export const DailyTracker: React.FC = () => {
         return <ToggleWidget habit={habit} log={log} date={selectedDate} />;
       case 'counter':
         return <CounterWidget habit={habit} log={log} date={selectedDate} />;
-      case 'numeric':
-        return <NumericWidget habit={habit} log={log} date={selectedDate} />;
       case 'preset_accumulator':
         return <PresetAccumulatorWidget habit={habit} log={log} date={selectedDate} />;
       default:
@@ -68,7 +93,7 @@ export const DailyTracker: React.FC = () => {
         <p>No active habits yet. Go to <strong>Manage Habits</strong> to add your first habit!</p>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          {habits.map((habit) => {
+          {orderedHabits.map((habit, index) => {
             const log = logsByHabitId.get(habit.id);
             const hasEntry = !!log;
             const isShaded = !hasEntry;
@@ -98,24 +123,44 @@ export const DailyTracker: React.FC = () => {
                 </legend>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
                   <div style={{ flex: 1 }}>{renderWidget(habit)}</div>
-                  {hasEntry && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    {hasEntry && (
+                      <button
+                        type="button"
+                        onClick={() => handleReset(log.id)}
+                        title="Remove database entry and revert to shaded"
+                        style={{
+                          padding: '0.25rem 0.6rem',
+                          fontSize: '0.85rem',
+                          cursor: 'pointer',
+                          backgroundColor: '#f3f4f6',
+                          border: '1px solid #d1d5db',
+                          borderRadius: '4px',
+                          color: '#374151'
+                        }}
+                      >
+                        Reset
+                      </button>
+                    )}
                     <button
                       type="button"
-                      onClick={() => handleReset(log.id)}
-                      title="Remove database entry and revert to shaded"
-                      style={{
-                        padding: '0.25rem 0.6rem',
-                        fontSize: '0.85rem',
-                        cursor: 'pointer',
-                        backgroundColor: '#f3f4f6',
-                        border: '1px solid #d1d5db',
-                        borderRadius: '4px',
-                        color: '#374151'
-                      }}
+                      onClick={() => handleMove(index, -1)}
+                      disabled={index === 0}
+                      title="Move habit up"
+                      style={reorderButtonStyle(index === 0)}
                     >
-                      Reset
+                      ▲
                     </button>
-                  )}
+                    <button
+                      type="button"
+                      onClick={() => handleMove(index, 1)}
+                      disabled={index === orderedHabits.length - 1}
+                      title="Move habit down"
+                      style={reorderButtonStyle(index === orderedHabits.length - 1)}
+                    >
+                      ▼
+                    </button>
+                  </div>
                 </div>
               </fieldset>
             );
