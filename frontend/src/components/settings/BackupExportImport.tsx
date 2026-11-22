@@ -59,8 +59,8 @@ export const BackupExportImport: React.FC = () => {
     <div>
       <h2>Settings & Data Portability</h2>
 
-      {statusMessage && <p style={{ color: 'green' }}><strong>&check; {statusMessage}</strong></p>}
-      {errorMessage && <p style={{ color: 'red' }}><strong>&times; {errorMessage}</strong></p>}
+      {statusMessage && <p style={{ color: 'green' }}><strong>✓ {statusMessage}</strong></p>}
+      {errorMessage && <p style={{ color: 'red' }}><strong>× {errorMessage}</strong></p>}
 
       <fieldset style={{ marginBottom: '1.5rem' }}>
         <legend><strong>Export Local Data</strong></legend>

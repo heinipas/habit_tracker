@@ -68,7 +68,7 @@ export const SyncSettings: React.FC = () => {
       <h2>Sync Server</h2>
       {message && (
         <p style={{ color: 'green' }}>
-          <strong>&check; {message}</strong>
+          <strong>✓ {message}</strong>
         </p>
       )}
 

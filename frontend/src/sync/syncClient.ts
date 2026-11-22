@@ -264,11 +264,10 @@ export async function healthCheck(): Promise<void> {
       // never by the unauthenticated health endpoint.
       ...(current.status === 'error' ? {} : { status: 'connected' as const, lastError: null })
     });
-    if (current.status === 'error') {
-      // Re-test the sync endpoint so a stale error clears once the actual
-      // failure (401, 5xx) is resolved — and persists while it is not.
-      void performSync();
-    }
+    // Sync on every successful probe: pushes pending changes (clears badges
+    // stuck by earlier offline/crash periods), clears a prior sync-level
+    // failure, and keeps devices converged. Coalesces via single-flight.
+    void performSync();
   } catch (err) {
     const { status, message } = classify(err);
     setSyncState({ status, lastError: message, lastCheckedAt: Date.now() });

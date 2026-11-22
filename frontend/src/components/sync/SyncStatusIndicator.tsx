@@ -47,7 +47,7 @@ function joinNames(rows: Array<{ name?: string; title?: string; emoji?: string |
 
 function UnsyncedSections({ summary }: { summary: UnsyncedSummary }) {
   if (summary.total === 0) {
-    return <div style={{ color: '#166534' }}>All changes synced &check;</div>;
+    return <div style={{ color: '#166534' }}>All changes synced ✓</div>;
   }
   return (
     <div>
@@ -200,7 +200,7 @@ export const SyncStatusIndicator: React.FC = () => {
             </div>
             {!serverUrl && (
               <div style={{ marginTop: '0.4rem', color: '#6b7280' }}>
-                Configure a server in Settings &amp; Backup.
+                Configure a server in Settings & Backup.
               </div>
             )}
           </div>
