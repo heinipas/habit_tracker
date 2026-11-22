@@ -199,21 +199,30 @@ describe('Sync client', () => {
     expect(getSyncState().status).toBe('connected');
   });
 
-  it('health check records the server version', async () => {
+  it('health check records the server version and triggers a sync cycle', async () => {
     saveSyncSettings(SERVER, API_KEY);
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({
-        status: 200,
-        ok: true,
-        json: async () => ({ status: 'ok', server_time: 1, version: '0.1.0' })
-      })
-    );
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.endsWith('/api/v1/health')) {
+        return {
+          status: 200,
+          ok: true,
+          json: async () => ({ status: 'ok', server_time: 1, version: '0.1.0' })
+        };
+      }
+      return { status: 200, ok: true, json: async () => emptyPayload(5000) };
+    });
+    vi.stubGlobal('fetch', fetchMock);
 
     await healthCheck();
 
+    // The successful probe kicks off a background sync cycle; wait for it.
+    await vi.waitFor(() => expect(getSyncState().lastSyncAt).not.toBeNull());
+    expect(
+      fetchMock.mock.calls.some(([url]) => String(url).endsWith('/api/v1/sync'))
+    ).toBe(true);
     expect(getSyncState().status).toBe('connected');
     expect(getSyncState().serverVersion).toBe('0.1.0');
+    expect(getLastSyncedAt()).toBe(5000);
   });
 
   it('does nothing when no server URL is configured', async () => {

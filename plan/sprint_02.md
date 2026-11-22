@@ -164,7 +164,7 @@ Server-side schema: identical columns to the client tables **minus** the local-o
 
 ### 4.3 Automatic Triggers (`sync/useSync.ts`)
 - On app mount; on `visibilitychange` → visible; on window `online`; debounced (~2 s) after local writes via Dexie's `db.hooks.on('writes')` across all four tables; manual *Sync Now*.
-- Health poll: `GET /api/v1/health` every 30 s and on focus, with a 5 s abort timeout (only when a server URL is configured).
+- Health poll: `GET /api/v1/health` every 30 s and on focus (5 s abort timeout, only when a server URL is configured). A successful probe also runs a sync cycle, so pending changes push and devices converge within one poll period — including automatically after offline or crash recovery.
 
 ### 4.4 Settings UI (`components/settings/SyncSettings.tsx`)
 Rendered in the Settings tab above the backup fieldset:

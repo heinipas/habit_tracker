@@ -127,7 +127,7 @@ All synced tables use client-generated UUIDs, millisecond timestamps (`updated_a
 
 Communication uses a single sync endpoint: `POST /api/v1/sync` (protected by `Authorization: Bearer <API_KEY>`).
 
-1. **Trigger:** Sync runs automatically on app open / focus (`visibilitychange`), debounced after local edits, or manually via a "Sync Now" button.
+1. **Trigger:** Sync runs automatically on app open / focus (`visibilitychange`), debounced after local edits, manually via a "Sync Now" button, and on a 30 s background health poll while a server is configured (the poll's successful probe also performs a sync, so pending changes never sit unsynced against a healthy server).
 2. **Client Request:** Sends `last_synced_at` (timestamp) plus arrays of all local records (`habits`, `habit_logs`, `derived_metrics`, `plot_views`) where `synced == 0`.
 3. **Server Processing (within a SQLite transaction):**
    - Upserts incoming records only if `incoming.updated_at > existing.updated_at` (Last-Write-Wins).
