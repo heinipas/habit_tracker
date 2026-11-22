@@ -21,23 +21,29 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
   };
 
   return (
-    <div style={{ marginBottom: '1rem' }}>
+    <div
+      style={{
+        marginBottom: '1rem',
+        display: 'flex',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: '0.4rem'
+      }}
+    >
       <label htmlFor="tracker-date"><strong>Date: </strong></label>
       <input
         id="tracker-date"
         type="date"
         value={selectedDate}
         onChange={(e) => onDateChange(e.target.value)}
+        style={{ width: '9.5rem', maxWidth: '100%', minWidth: 0 }}
       />
-      {' '}
       <button type="button" onClick={() => onDateChange(getShiftedDate(-1))}>
         &larr; Prev Day
       </button>
-      {' '}
       <button type="button" onClick={() => onDateChange(getTodayDate())}>
         Today
       </button>
-      {' '}
       <button type="button" onClick={() => onDateChange(getShiftedDate(1))}>
         Next Day &rarr;
       </button>

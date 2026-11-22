@@ -45,6 +45,7 @@ export const HabitForm: React.FC<HabitFormProps> = ({ existingHabit, onDone, onC
     initialConfig.step != null ? String(initialConfig.step) : '1'
   );
   const [presets, setPresets] = useState<PresetItem[]>(initialConfig.presets || []);
+  const [color, setColor] = useState<string>(initialConfig.color || '');
   const [error, setError] = useState<string | null>(null);
 
   const handleDataTypeChange = (newType: DataType) => {
@@ -96,7 +97,8 @@ export const HabitForm: React.FC<HabitFormProps> = ({ existingHabit, onDone, onC
       step: parsedStep && parsedStep > 0 ? parsedStep : undefined,
       presets: widgetType === 'preset_accumulator' ? presets : undefined,
       // No picker default for binary toggles: the checkbox always starts unchecked
-      default_picker_value: widgetType === 'toggle' ? undefined : parsedDefaultPicker
+      default_picker_value: widgetType === 'toggle' ? undefined : parsedDefaultPicker,
+      color: color || undefined
     };
 
     try {
@@ -159,6 +161,30 @@ export const HabitForm: React.FC<HabitFormProps> = ({ existingHabit, onDone, onC
           <option value="binary">Binary (done / not done)</option>
           <option value="float">Numeric (quantifiable value)</option>
         </select>
+      </div>
+
+      <div style={{ marginBottom: '0.75rem' }}>
+        <label htmlFor="habit-color"><strong>Color (Optional): </strong></label>
+        <input
+          id="habit-color"
+          type="color"
+          value={color || '#e5e7eb'}
+          onChange={(e) => setColor(e.target.value)}
+          style={{ width: '40px', height: '28px', padding: '0', verticalAlign: 'middle' }}
+        />
+        {color && (
+          <button
+            type="button"
+            onClick={() => setColor('')}
+            style={{ marginLeft: '0.5rem', fontSize: '0.85rem' }}
+          >
+            Clear
+          </button>
+        )}
+        <br />
+        <small style={{ color: '#555' }}>
+          Shown as the habit's border color in the Daily Tracker.
+        </small>
       </div>
 
       <div style={{ marginBottom: '0.75rem' }}>

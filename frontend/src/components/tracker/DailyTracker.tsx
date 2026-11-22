@@ -6,7 +6,17 @@ import { ToggleWidget } from './widgets/ToggleWidget';
 import { CounterWidget } from './widgets/CounterWidget';
 import { PresetAccumulatorWidget } from './widgets/PresetAccumulatorWidget';
 import { softDeleteHabitLog, reorderHabits } from '../../db/queries';
-import type { Habit, HabitLog } from '../../types';
+import type { Habit, HabitConfig, HabitLog } from '../../types';
+
+// Optional border color from config_json; no schema change needed (free-form JSON)
+const getHabitColor = (habit: Habit): string | undefined => {
+  try {
+    const config: HabitConfig = JSON.parse(habit.config_json || '{}');
+    return config.color || undefined;
+  } catch {
+    return undefined;
+  }
+};
 
 export const DailyTracker: React.FC = () => {
   const getTodayDate = (): string => {
@@ -103,7 +113,7 @@ export const DailyTracker: React.FC = () => {
                 key={habit.id}
                 style={{
                   backgroundColor: isShaded ? '#f4f4f5' : '#ffffff',
-                  borderColor: isShaded ? '#d1d5db' : '#e5e7eb',
+                  borderColor: getHabitColor(habit) ?? (isShaded ? '#d1d5db' : '#e5e7eb'),
                   borderWidth: '1px',
                   borderStyle: 'solid',
                   borderRadius: '6px',
@@ -129,9 +139,11 @@ export const DailyTracker: React.FC = () => {
                         type="button"
                         onClick={() => handleReset(log.id)}
                         title="Remove database entry and revert to shaded"
+                        aria-label="Reset entry"
                         style={{
-                          padding: '0.25rem 0.6rem',
-                          fontSize: '0.85rem',
+                          padding: '0.25rem 0.5rem',
+                          fontSize: '1rem',
+                          lineHeight: 1,
                           cursor: 'pointer',
                           backgroundColor: '#f3f4f6',
                           border: '1px solid #d1d5db',
@@ -139,27 +151,29 @@ export const DailyTracker: React.FC = () => {
                           color: '#374151'
                         }}
                       >
-                        Reset
+                        ↺
                       </button>
                     )}
-                    <button
-                      type="button"
-                      onClick={() => handleMove(index, -1)}
-                      disabled={index === 0}
-                      title="Move habit up"
-                      style={reorderButtonStyle(index === 0)}
-                    >
-                      ▲
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleMove(index, 1)}
-                      disabled={index === orderedHabits.length - 1}
-                      title="Move habit down"
-                      style={reorderButtonStyle(index === orderedHabits.length - 1)}
-                    >
-                      ▼
-                    </button>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                      <button
+                        type="button"
+                        onClick={() => handleMove(index, -1)}
+                        disabled={index === 0}
+                        title="Move habit up"
+                        style={reorderButtonStyle(index === 0)}
+                      >
+                        ▲
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleMove(index, 1)}
+                        disabled={index === orderedHabits.length - 1}
+                        title="Move habit down"
+                        style={reorderButtonStyle(index === orderedHabits.length - 1)}
+                      >
+                        ▼
+                      </button>
+                    </div>
                   </div>
                 </div>
               </fieldset>

@@ -64,7 +64,7 @@ export const CounterWidget: React.FC<WidgetProps> = ({ habit, log, date }) => {
         value={inputValue}
         onChange={handleInputChange}
         onBlur={handleInputBlur}
-        style={{ width: '80px' }}
+        style={{ width: '40px', minWidth: 0 }}
       />
       {habit.unit && <span>{habit.unit}</span>}
       <button type="button" onClick={() => handleDelta(step)}>+{step}</button>

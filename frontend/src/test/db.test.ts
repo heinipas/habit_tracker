@@ -263,6 +263,37 @@ describe('IndexedDB CRUD and Soft Deletes', () => {
     expect(edited.sort_order).toBe(0);
   });
 
+  it('persists an optional color in config_json without schema changes', async () => {
+    const habit = await saveHabit({
+      name: 'Cycling',
+      data_type: 'float',
+      unit: 'km',
+      is_good: true,
+      default_value: 0,
+      widget_type: 'counter',
+      config_json: JSON.stringify({ step: 5, color: '#3b82f6' })
+    });
+
+    const stored = await db.habits.get(habit.id);
+    expect(JSON.parse(stored!.config_json).color).toBe('#3b82f6');
+
+    // Editing without a color clears it while keeping other config keys
+    const edited = await saveHabit({
+      id: habit.id,
+      name: 'Cycling',
+      data_type: 'float',
+      unit: 'km',
+      is_good: true,
+      default_value: 0,
+      widget_type: 'counter',
+      config_json: JSON.stringify({ step: 5, color: undefined })
+    });
+    const editedStored = await db.habits.get(edited.id);
+    const editedConfig = JSON.parse(editedStored!.config_json);
+    expect(editedConfig.color).toBeUndefined();
+    expect(editedConfig.step).toBe(5);
+  });
+
   it('persists habit reordering for the Daily Tracker', async () => {
     const a = await saveHabit({
       name: 'Meditation',
