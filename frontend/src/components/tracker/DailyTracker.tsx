@@ -6,7 +6,17 @@ import { ToggleWidget } from './widgets/ToggleWidget';
 import { CounterWidget } from './widgets/CounterWidget';
 import { PresetAccumulatorWidget } from './widgets/PresetAccumulatorWidget';
 import { softDeleteHabitLog, reorderHabits } from '../../db/queries';
-import type { Habit, HabitLog } from '../../types';
+import type { Habit, HabitConfig, HabitLog } from '../../types';
+
+// Optional border color from config_json; no schema change needed (free-form JSON)
+const getHabitColor = (habit: Habit): string | undefined => {
+  try {
+    const config: HabitConfig = JSON.parse(habit.config_json || '{}');
+    return config.color || undefined;
+  } catch {
+    return undefined;
+  }
+};
 
 export const DailyTracker: React.FC = () => {
   const getTodayDate = (): string => {
@@ -103,7 +113,7 @@ export const DailyTracker: React.FC = () => {
                 key={habit.id}
                 style={{
                   backgroundColor: isShaded ? '#f4f4f5' : '#ffffff',
-                  borderColor: isShaded ? '#d1d5db' : '#e5e7eb',
+                  borderColor: getHabitColor(habit) ?? (isShaded ? '#d1d5db' : '#e5e7eb'),
                   borderWidth: '1px',
                   borderStyle: 'solid',
                   borderRadius: '6px',

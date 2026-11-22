@@ -204,3 +204,4 @@ Build incrementally—starting with a functional, barebones unstyled HTML/JS cor
 
 ### Feature Backlog
 - min, max
+- Habit & derived-metric color: optional `color` in `config_json` (hex string) for habits and derived metrics — no schema/version change required; shown as the fieldset border color in the Daily Tracker only.
