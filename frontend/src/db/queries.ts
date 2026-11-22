@@ -205,10 +205,15 @@ export async function importDatabaseFromJson(
         db.plot_views.clear()
       ]);
 
-      if (payload.habits?.length) await db.habits.bulkAdd(payload.habits);
-      if (payload.habit_logs?.length) await db.habit_logs.bulkAdd(payload.habit_logs);
-      if (payload.derived_metrics?.length) await db.derived_metrics.bulkAdd(payload.derived_metrics);
-      if (payload.plot_views?.length) await db.plot_views.bulkAdd(payload.plot_views);
+      // Imported rows are queued for push so restored data reaches the server.
+      if (payload.habits?.length)
+        await db.habits.bulkAdd(payload.habits.map((row) => ({ ...row, synced: 0 })));
+      if (payload.habit_logs?.length)
+        await db.habit_logs.bulkAdd(payload.habit_logs.map((row) => ({ ...row, synced: 0 })));
+      if (payload.derived_metrics?.length)
+        await db.derived_metrics.bulkAdd(payload.derived_metrics.map((row) => ({ ...row, synced: 0 })));
+      if (payload.plot_views?.length)
+        await db.plot_views.bulkAdd(payload.plot_views.map((row) => ({ ...row, synced: 0 })));
 
       return {
         habitsCount: payload.habits?.length || 0,
@@ -222,7 +227,8 @@ export async function importDatabaseFromJson(
       for (const incoming of payload.habits || []) {
         const existing = await db.habits.get(incoming.id);
         if (!existing || incoming.updated_at >= existing.updated_at) {
-          await db.habits.put(incoming);
+          // `synced = 0` queues the restored row for the next push.
+          await db.habits.put({ ...incoming, synced: 0 });
           habitsUpserted++;
         }
       }
@@ -230,7 +236,7 @@ export async function importDatabaseFromJson(
       for (const incoming of payload.habit_logs || []) {
         const existing = await db.habit_logs.get(incoming.id);
         if (!existing || incoming.updated_at >= existing.updated_at) {
-          await db.habit_logs.put(incoming);
+          await db.habit_logs.put({ ...incoming, synced: 0 });
           logsUpserted++;
         }
       }
@@ -238,14 +244,14 @@ export async function importDatabaseFromJson(
       for (const incoming of payload.derived_metrics || []) {
         const existing = await db.derived_metrics.get(incoming.id);
         if (!existing || incoming.updated_at >= existing.updated_at) {
-          await db.derived_metrics.put(incoming);
+          await db.derived_metrics.put({ ...incoming, synced: 0 });
         }
       }
 
       for (const incoming of payload.plot_views || []) {
         const existing = await db.plot_views.get(incoming.id);
         if (!existing || incoming.updated_at >= existing.updated_at) {
-          await db.plot_views.put(incoming);
+          await db.plot_views.put({ ...incoming, synced: 0 });
         }
       }
 
