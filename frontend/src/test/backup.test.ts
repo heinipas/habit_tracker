@@ -22,7 +22,7 @@ describe('Data Portability: Export and Import', () => {
       unit: 'L',
       is_good: true,
       default_value: 0,
-      widget_type: 'numeric',
+      widget_type: 'counter',
       config_json: JSON.stringify({ default_picker_value: 2.0 })
     });
 

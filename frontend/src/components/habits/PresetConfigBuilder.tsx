@@ -31,7 +31,7 @@ export const PresetConfigBuilder: React.FC<PresetConfigBuilderProps> = ({ preset
   return (
     <fieldset style={{ marginTop: '0.75rem' }}>
       <legend><strong>Accumulator Quick Presets</strong></legend>
-      <p><small>Configure quick-tap delta buttons (e.g. Emoji: "🍺", Label: "Beer 5dl", Delta: 1.5).</small></p>
+      <p><small>Quick-tap delta buttons, e.g. 🍺 "Beer 5dl" = +1.5.</small></p>
 
       {presets.length === 0 ? (
         <p><em>No presets defined yet. Tap "Add Preset" below.</em></p>

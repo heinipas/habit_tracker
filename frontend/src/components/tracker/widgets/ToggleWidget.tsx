@@ -1,5 +1,5 @@
 import React from 'react';
-import type { Habit, HabitLog, HabitConfig } from '../../../types';
+import type { Habit, HabitLog } from '../../../types';
 import { upsertHabitLog } from '../../../db/queries';
 
 interface WidgetProps {
@@ -9,17 +9,8 @@ interface WidgetProps {
 }
 
 export const ToggleWidget: React.FC<WidgetProps> = ({ habit, log, date }) => {
-  let config: HabitConfig = {};
-  try {
-    config = JSON.parse(habit.config_json || '{}');
-  } catch {
-    // fallback
-  }
-
-  // If already logged, reflect log value.
-  // If unlogged (log === undefined), respect default_picker_value (1 = checked by default)
-  const defaultChecked = config.default_picker_value === 1;
-  const isDone = log ? log.value > 0 : defaultChecked;
+  // Reflect the stored log; without a log the toggle starts unchecked.
+  const isDone = (log?.value ?? 0) > 0;
 
   const handleToggle = async () => {
     const nextVal = isDone ? 0 : 1;

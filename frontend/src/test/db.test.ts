@@ -8,6 +8,7 @@ import {
   upsertHabitLog,
   getLogForHabitAndDate,
   softDeleteHabitLog,
+  reorderHabits,
   clearAllData
 } from '../db/queries';
 
@@ -23,7 +24,7 @@ describe('IndexedDB CRUD and Soft Deletes', () => {
       unit: 'km',
       is_good: true,
       default_value: 0, // Unlogged days count as 0 km
-      widget_type: 'numeric',
+      widget_type: 'counter',
       config_json: JSON.stringify({ default_picker_value: 15.0 })
     });
 
@@ -48,7 +49,7 @@ describe('IndexedDB CRUD and Soft Deletes', () => {
       unit: 'kg',
       is_good: true,
       default_value: null, // Unlogged days are treated as missing
-      widget_type: 'numeric',
+      widget_type: 'counter',
       config_json: JSON.stringify({ default_picker_value: 75.0 })
     });
 
@@ -137,7 +138,7 @@ describe('IndexedDB CRUD and Soft Deletes', () => {
       unit: 'pages',
       is_good: true,
       default_value: 0,
-      widget_type: 'numeric',
+      widget_type: 'counter',
       config_json: '{}'
     });
 
@@ -212,19 +213,6 @@ describe('IndexedDB CRUD and Soft Deletes', () => {
   });
 
   it('stores widget-specific default picker values', async () => {
-    // Toggle default picker value: 1
-    const toggleHabit = await saveHabit({
-      name: 'Floss',
-      data_type: 'binary',
-      unit: null,
-      is_good: true,
-      default_value: 0,
-      widget_type: 'toggle',
-      config_json: JSON.stringify({ default_picker_value: 1 })
-    });
-    const parsedToggle = JSON.parse(toggleHabit.config_json);
-    expect(parsedToggle.default_picker_value).toBe(1);
-
     // Preset accumulator custom delta default picker value: 1.5
     const presetHabit = await saveHabit({
       name: 'Coffee',
@@ -237,5 +225,81 @@ describe('IndexedDB CRUD and Soft Deletes', () => {
     });
     const parsedPreset = JSON.parse(presetHabit.config_json);
     expect(parsedPreset.default_picker_value).toBe(1.5);
+  });
+
+  it('appends new habits to the end and keeps their position when editing', async () => {
+    const first = await saveHabit({
+      name: 'Meditation',
+      data_type: 'binary',
+      unit: null,
+      is_good: true,
+      default_value: null,
+      widget_type: 'toggle',
+      config_json: '{}'
+    });
+    const second = await saveHabit({
+      name: 'Cycling',
+      data_type: 'float',
+      unit: 'km',
+      is_good: true,
+      default_value: 0,
+      widget_type: 'counter',
+      config_json: '{}'
+    });
+
+    expect(first.sort_order).toBe(0);
+    expect(second.sort_order).toBe(1);
+
+    const edited = await saveHabit({
+      id: first.id,
+      name: 'Deep Meditation',
+      data_type: 'binary',
+      unit: null,
+      is_good: true,
+      default_value: null,
+      widget_type: 'toggle',
+      config_json: '{}'
+    });
+    expect(edited.sort_order).toBe(0);
+  });
+
+  it('persists habit reordering for the Daily Tracker', async () => {
+    const a = await saveHabit({
+      name: 'Meditation',
+      data_type: 'binary',
+      unit: null,
+      is_good: true,
+      default_value: null,
+      widget_type: 'toggle',
+      config_json: '{}'
+    });
+    const b = await saveHabit({
+      name: 'Cycling',
+      data_type: 'float',
+      unit: 'km',
+      is_good: true,
+      default_value: 0,
+      widget_type: 'counter',
+      config_json: '{}'
+    });
+    const c = await saveHabit({
+      name: 'Reading',
+      data_type: 'float',
+      unit: 'pages',
+      is_good: true,
+      default_value: 0,
+      widget_type: 'counter',
+      config_json: '{}'
+    });
+
+    await reorderHabits([c.id, a.id, b.id]);
+
+    const active = await getActiveHabits();
+    const sortOrderById = new Map(
+      active.map((habit): [string, number | null | undefined] => [habit.id, habit.sort_order])
+    );
+    expect(sortOrderById.get(c.id)).toBe(0);
+    expect(sortOrderById.get(a.id)).toBe(1);
+    expect(sortOrderById.get(b.id)).toBe(2);
   });
 });

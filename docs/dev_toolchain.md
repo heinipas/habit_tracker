@@ -77,7 +77,6 @@ habit_tracker/
     │   │   │   └── widgets/
     │   │   │       ├── ToggleWidget.tsx
     │   │   │       ├── CounterWidget.tsx
-    │   │   │       ├── NumericWidget.tsx
     │   │   │       └── PresetAccumulatorWidget.tsx
     │   │   ├── habits/             # Habit configuration & CRUD
     │   │   │   ├── HabitList.tsx
@@ -157,7 +156,7 @@ Habits separate statistical aggregation behavior from daily logging convenience:
   - `null`: Unlogged days are treated as missing/ignored in averages and charts (e.g. body weight, sleep hours).
   - Fixed number (e.g. `0`): Unlogged days count as that number (e.g. `0` alcohol units, `0` km biked).
 - **`default_picker_value` (`number | null` in `config_json`):**
-  - Tailored to the widget type on unlogged days: pre-checks toggle checkbox (`1` or `0`); pre-populates numeric and counter inputs; pre-fills the custom delta field for preset accumulators.
+  - Tailored to the widget type on unlogged days: pre-populates the counter input; pre-fills the custom delta field for preset accumulators. Binary toggles have no picker default.
 
 ### 4. Direct Value Correction
 - The `preset_accumulator` widget enables quick increment logging (e.g. tapping beverage presets), but also features a direct `[Correct / Edit Total]` toggle.
