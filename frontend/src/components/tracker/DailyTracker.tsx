@@ -70,9 +70,8 @@ export const DailyTracker: React.FC = () => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           {habits.map((habit) => {
             const log = logsByHabitId.get(habit.id);
-            const isNullDefault = habit.default_value == null;
             const hasEntry = !!log;
-            const isShaded = isNullDefault && !hasEntry;
+            const isShaded = !hasEntry;
 
             return (
               <fieldset
@@ -93,13 +92,13 @@ export const DailyTracker: React.FC = () => {
                   {!habit.is_good && <small style={{ color: '#888' }}></small>}
                   {isShaded && (
                     <small style={{ color: '#6b7280', marginLeft: '0.5rem', fontStyle: 'italic' }}>
-                      (No entry)
+                      (n/a)
                     </small>
                   )}
                 </legend>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
                   <div style={{ flex: 1 }}>{renderWidget(habit)}</div>
-                  {isNullDefault && hasEntry && (
+                  {hasEntry && (
                     <button
                       type="button"
                       onClick={() => handleReset(log.id)}
