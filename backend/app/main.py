@@ -1,3 +1,4 @@
+import sqlite3
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI
@@ -12,7 +13,15 @@ from .sync import now_ms, run_sync
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    conn = connect(app.state.settings.db_path)
+    try:
+        conn = connect(app.state.settings.db_path)
+    except sqlite3.OperationalError as exc:
+        raise RuntimeError(
+            f"Cannot open the SQLite database at {app.state.settings.db_path!r}: {exc}. "
+            "When the data directory is a bind mount, its owner must match the container "
+            "user (the default entrypoint fixes this automatically; if you override "
+            "`user:` in docker-compose.yml, chown the directory to that uid first)."
+        ) from exc
     try:
         init_schema(conn)
     finally:

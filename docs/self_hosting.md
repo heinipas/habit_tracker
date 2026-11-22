@@ -86,3 +86,12 @@ replace the file, start container.
 docker build -t habit-sync-server:local backend/
 # run it via compose by replacing `image:` with `build: ./backend`
 ```
+
+## 7. Troubleshooting
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| Container exits with `sqlite3.OperationalError: unable to open database file` | Data directory not writable by the container user (bind-mount ownership) | Use the default entrypoint — it chowns the `DB_PATH` directory on every start. Only if you override `user:` in compose: `sudo chown -R <uid>:<gid> ./data` |
+| Browser console shows a CORS error | Frontend origin missing from `CORS_ORIGINS` | Add it (scheme + host, no path), `docker compose up -d` |
+| App shows red dot / `401` | API key mismatch | Make the Settings key equal `API_KEY`, recreate the container |
+| `curl` returns `404` on `/api/v1/health` | Reverse proxy/tunnel strips the path or points elsewhere | Check the proxy forwards to `127.0.0.1:8090` unchanged |
